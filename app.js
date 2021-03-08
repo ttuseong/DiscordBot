@@ -9,17 +9,23 @@ client.on('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
 });
 
+client.on('guildMemberAdd', member => {
+  const channel = member.guild.channels.cache.find(ch => ch.name === 'asdqwe');
+
+  if (!channel) return;
+
+  channel.send(`${member}님 어서오세요!`);
+});
+
 client.on('message', msg => {
   var msgArray = msg.content.split(' ')[0];
 
   if (msgArray === config.prefix + '도움말') {
-    msg.channel.send("일정 추가 방법 : !@일정추가 일정내용/시간/매월 반복");
-    msg.channel.send("ex:)!@일정추가 공부 시작/9:30/y");
-    msg.channel.send("ex:)!@일정추가 외식/16:00/n");
+    msg.channel.send("일정 추가 방법 : !@일정추가 일정내용/시간/매일 반복");
+    msg.channel.send("ex:)" + config.prefix + "일정추가 공부 시작/9:30/y");
+    msg.channel.send("ex:)" + config.prefix + "일정추가 외식/16:00/n");
   } else if(msgArray == config.prefix + '일정추가') {
     addSchedule(msg);
-  } else{
-    console.log("test");
   }
 });
 
@@ -47,8 +53,5 @@ function addSchedule(data){
     return;
   }
 }
-
-//훅, 봇이 먼저 메시지를 보냄
-//hook.send('hook test');
 
 client.login(config.token);
