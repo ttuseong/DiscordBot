@@ -78,13 +78,15 @@ connection.on('connect', function(err) {
       throw err;
     }
     console.log("Connected");
-    executeStatement1();
-  //  executeStatement();
+    deleteTest();
+    // updateTest();
+    //insertTest();
+  //  selectTest();
 });
 
 connection.connect();
 
-function executeStatement() {
+function selectTest() {
     request = new Request("select * from test;", function(err) {
     if (err) {
         console.log(err);}
@@ -108,7 +110,7 @@ function executeStatement() {
     connection.execSql(request);
 }
 
-function executeStatement1() {
+function insertTest() {
    request = new Request("insert into test values(@Name, @text);", function(err) {
     if (err) {
        console.log(err);}
@@ -126,6 +128,46 @@ function executeStatement1() {
        });
    });
    connection.execSql(request);
+}
+
+function updateTest(){
+  request = new Request("update test set text = @text where name = @Name;", function(err) {
+   if (err) {
+      console.log(err);}
+  });
+  request.addParameter('Name', TYPES.Int, 5);
+  request.addParameter('text', TYPES.VarChar, '성공쓰');
+
+  request.on('row', function(columns) {
+      columns.forEach(function(column) {
+        if (column.value === null) {
+          console.log('NULL');
+        } else {
+          console.log("Product id of inserted item is " + column.value);
+        }
+      });
+  });
+  connection.execSql(request);
+}
+
+function deleteTest(){
+  request = new Request("delete from test where name = @Name;", function(err) {
+   if (err) {
+      console.log(err);}
+  });
+  request.addParameter('Name', TYPES.Int, 8);
+
+
+  request.on('row', function(columns) {
+      columns.forEach(function(column) {
+        if (column.value === null) {
+          console.log('NULL');
+        } else {
+          console.log("Product id of inserted item is " + column.value);
+        }
+      });
+  });
+  connection.execSql(request);
 }
 
 client.login(config.token);
