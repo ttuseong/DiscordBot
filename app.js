@@ -74,8 +74,12 @@ var dbConfig = {
 };
 var connection = new Connection(dbConfig);
 connection.on('connect', function(err) {
+    if(err){
+      throw err;
+    }
     console.log("Connected");
-    executeStatement();
+    executeStatement1();
+  //  executeStatement();
 });
 
 connection.connect();
@@ -102,6 +106,26 @@ function executeStatement() {
     console.log(rowCount + ' rows returned');
     });
     connection.execSql(request);
+}
+
+function executeStatement1() {
+   request = new Request("insert into test values(@Name, @text);", function(err) {
+    if (err) {
+       console.log(err);}
+   });
+   request.addParameter('Name', TYPES.Int,23);
+   request.addParameter('text', TYPES.VarChar, 'gldlr');
+
+   request.on('row', function(columns) {
+       columns.forEach(function(column) {
+         if (column.value === null) {
+           console.log('NULL');
+         } else {
+           console.log("Product id of inserted item is " + column.value);
+         }
+       });
+   });
+   connection.execSql(request);
 }
 
 client.login(config.token);
