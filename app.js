@@ -1,9 +1,13 @@
 const Discord = require('discord.js');
 const schedule = require('node-schedule');
-const config = require('./config.json')
+const config = require('./config.json');
+const tedious = require('tedious');
 
 const client = new Discord.Client();
-const hook = new Discord.WebhookClient(config.webhookId, config.webhookToken);
+
+const Connection = tedious.Connection;
+var Request = tedious.Request;
+var TYPES = tedious.TYPES;
 
 client.on('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
@@ -52,6 +56,52 @@ function addSchedule(data){
     data.channel.send("반복을 판단하는 곳에 입력을 확인해주세요!");
     return;
   }
+}
+
+var dbConfig = {
+    server: config.dbServer,
+    authentication: {
+        type: 'default',
+        options: {
+            userName: config.dbUserName,
+            password: config.dbPassWord
+        }
+    },
+    options: {
+        encrypt: false,
+        database: config.db
+    }
+};
+var connection = new Connection(dbConfig);
+connection.on('connect', function(err) {
+    console.log("Connected");
+    executeStatement();
+});
+
+connection.connect();
+
+function executeStatement() {
+    request = new Request("select * from test;", function(err) {
+    if (err) {
+        console.log(err);}
+    });
+    var result = "";
+    request.on('row', function(columns) {
+        columns.forEach(function(column) {
+          if (column.value === null) {
+            console.log('NULL');
+          } else {
+            result+= column.value + " ";
+          }
+        });
+        console.log(result);
+        result ="";
+    });
+
+    request.on('done', function(rowCount, more) {
+    console.log(rowCount + ' rows returned');
+    });
+    connection.execSql(request);
 }
 
 client.login(config.token);
