@@ -1,13 +1,11 @@
 const Discord = require('discord.js');
 const schedule = require('node-schedule');
 const config = require('./config.json');
-const tedious = require('tedious');
+const dao = require('./dao.js');
 
 const client = new Discord.Client();
 
-const Connection = tedious.Connection;
-var Request = tedious.Request;
-var TYPES = tedious.TYPES;
+var map = new Map();
 
 client.on('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
@@ -24,150 +22,78 @@ client.on('guildMemberAdd', member => {
 client.on('message', msg => {
   var msgArray = msg.content.split(' ')[0];
 
+  console.log(msgArray);
+
   if (msgArray === config.prefix + '도움말') {
-    msg.channel.send("일정 추가 방법 : !@일정추가 일정내용/시간/매일 반복");
-    msg.channel.send("ex:)" + config.prefix + "일정추가 공부 시작/9:30/y");
-    msg.channel.send("ex:)" + config.prefix + "일정추가 외식/16:00/n");
+    msg.channel.send("일정 추가 방법 : "+config.prefix+"일정추가 일정이름/일정내용/시간/매일 반복");
+    msg.channel.send("ex:)" + config.prefix + "일정추가 공부시작/야야야야 빨리 공부해라!/9:30/y");
+    msg.channel.send("ex:)" + config.prefix + "일정추가 외식/야야야야오늘 외식이다/16:00/n");
+    msg.channel.send("일정 삭제 방법 : " + config.prefix +"삭제 일정이름")
+  } else if(msgArray == config.prefix + '서버등록'){
+    insertServer(msg);
   } else if(msgArray == config.prefix + '일정추가') {
-    addSchedule(msg);
+    dao.dbConnect(1);
+    // addSchedule(msg);
+  } else if(msgArray == config.prefix + '삭제'){
+    deleteSchedule(msg);
   }
 });
+
+function insertServer(msg){
+  var data = msg.content.split("/");
+  var dataMap = new Map();
+
+  data[0] = data[0].substring(7, data[0].length);
+
+  dataMap.set("webhookID", data[0]);
+  dataMap.set("webhookToken", data[1]);
+  dataMap.set("serverID", msg.guild.id);
+
+  dao.dbConnect(0, dataMap);
+}
+
 
 function addSchedule(data){
   var newSchedule = data.content.split("/");
   newSchedule[0] = newSchedule[0].substring(7, newSchedule[0].length);
 
-  if(newSchedule[2] == 'n' || newSchedule[2] == 'N'){
+  var job;
+
+  if(newSchedule[3] == 'n' || newSchedule[3] == 'N'){
     var now = new Date();
-    var time = newSchedule[1].split(":");
+    var time = newSchedule[2].split(":");
 
     var date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), time[0], time[1], 0);
 
-    const job = schedule.scheduleJob(date, function(){
-      data.channel.send(newSchedule[0]);
+    job = schedule.scheduleJob(date, function(){
+      data.channel.send(newSchedule[1]);
     });
-  } else if(newSchedule[2] == 'y' || newSchedule[2] == 'Y'){
-    var time = newSchedule[1].split(":");
+  } else if(newSchedule[3] == 'y' || newSchedule[3] == 'Y'){
+    var time = newSchedule[2].split(":");
 
-    const job = schedule.scheduleJob(time[1] + ' ' + time[0] + ' '+ '* * *', function(){
-      data.channel.send(newSchedule[0]);
+    job = schedule.scheduleJob(time[1] + ' ' + time[0] + ' '+ '* * *', function(){
+      data.channel.send(newSchedule[1]);
     });
   } else{
     data.channel.send("반복을 판단하는 곳에 입력을 확인해주세요!");
     return;
   }
+
+  map.set(data.author.id+newSchedule[0], job);
 }
 
-var dbConfig = {
-    server: config.dbServer,
-    authentication: {
-        type: 'default',
-        options: {
-            userName: config.dbUserName,
-            password: config.dbPassWord
-        }
-    },
-    options: {
-        encrypt: false,
-        database: config.db
-    }
-};
-var connection = new Connection(dbConfig);
-connection.on('connect', function(err) {
-    if(err){
-      throw err;
-    }
-    console.log("Connected");
-    deleteTest();
-    // updateTest();
-    //insertTest();
-  //  selectTest();
-});
+function deleteSchedule(data){
+  var key = data.author.id + data.content.substring(5, data.content.length);
+  var target = map.get(key);
 
-connection.connect();
-
-function selectTest() {
-    request = new Request("select * from test;", function(err) {
-    if (err) {
-        console.log(err);}
-    });
-    var result = "";
-    request.on('row', function(columns) {
-        columns.forEach(function(column) {
-          if (column.value === null) {
-            console.log('NULL');
-          } else {
-            result+= column.value + " ";
-          }
-        });
-        console.log(result);
-        result ="";
-    });
-
-    request.on('done', function(rowCount, more) {
-    console.log(rowCount + ' rows returned');
-    });
-    connection.execSql(request);
+  if(target == null){
+    data.channel.send("삭제할 수 없습니다.");
+    return;
+  } else{
+    target.cancel();
+  }
 }
 
-function insertTest() {
-   request = new Request("insert into test values(@Name, @text);", function(err) {
-    if (err) {
-       console.log(err);}
-   });
-   request.addParameter('Name', TYPES.Int,23);
-   request.addParameter('text', TYPES.VarChar, 'gldlr');
 
-   request.on('row', function(columns) {
-       columns.forEach(function(column) {
-         if (column.value === null) {
-           console.log('NULL');
-         } else {
-           console.log("Product id of inserted item is " + column.value);
-         }
-       });
-   });
-   connection.execSql(request);
-}
-
-function updateTest(){
-  request = new Request("update test set text = @text where name = @Name;", function(err) {
-   if (err) {
-      console.log(err);}
-  });
-  request.addParameter('Name', TYPES.Int, 5);
-  request.addParameter('text', TYPES.VarChar, '성공쓰');
-
-  request.on('row', function(columns) {
-      columns.forEach(function(column) {
-        if (column.value === null) {
-          console.log('NULL');
-        } else {
-          console.log("Product id of inserted item is " + column.value);
-        }
-      });
-  });
-  connection.execSql(request);
-}
-
-function deleteTest(){
-  request = new Request("delete from test where name = @Name;", function(err) {
-   if (err) {
-      console.log(err);}
-  });
-  request.addParameter('Name', TYPES.Int, 8);
-
-
-  request.on('row', function(columns) {
-      columns.forEach(function(column) {
-        if (column.value === null) {
-          console.log('NULL');
-        } else {
-          console.log("Product id of inserted item is " + column.value);
-        }
-      });
-  });
-  connection.execSql(request);
-}
 
 client.login(config.token);
