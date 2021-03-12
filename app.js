@@ -22,8 +22,6 @@ client.on('guildMemberAdd', member => {
 client.on('message', msg => {
   var msgArray = msg.content.split(' ')[0];
 
-  console.log(msgArray);
-
   if (msgArray === config.prefix + '도움말') {
     msg.channel.send("일정 추가 방법 : "+config.prefix+"일정추가 일정이름/일정내용/시간/매일 반복");
     msg.channel.send("ex:)" + config.prefix + "일정추가 공부시작/야야야야 빨리 공부해라!/9:30/y");
@@ -32,8 +30,7 @@ client.on('message', msg => {
   } else if(msgArray == config.prefix + '서버등록'){
     insertServer(msg);
   } else if(msgArray == config.prefix + '일정추가') {
-    dao.dbConnect(1);
-    // addSchedule(msg);
+    addSchedule(msg);
   } else if(msgArray == config.prefix + '삭제'){
     deleteSchedule(msg);
   }
@@ -53,9 +50,16 @@ function insertServer(msg){
 }
 
 
-function addSchedule(data){
-  var newSchedule = data.content.split("/");
+function addSchedule(msg){
+  var newSchedule = msg.content.split("/");
   newSchedule[0] = newSchedule[0].substring(7, newSchedule[0].length);
+
+  var dataMap = new Map();
+  dataMap.set("serverID", msg.guild.id);
+  dataMap.set("userID", msg.author.id);
+  dataMap.set("alarmName", newSchedule[0]);
+  dataMap.set("alarmContent", newSchedule[1]);
+  dataMap.set("alarmTime", newSchedule[2]);
 
   var job;
 
@@ -65,21 +69,30 @@ function addSchedule(data){
 
     var date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), time[0], time[1], 0);
 
+    dataMap.set("roof", 0);
+
+    dao.dbConnect(1, dataMap);
+
     job = schedule.scheduleJob(date, function(){
-      data.channel.send(newSchedule[1]);
+      msg.channel.send(newSchedule[1]);
     });
   } else if(newSchedule[3] == 'y' || newSchedule[3] == 'Y'){
     var time = newSchedule[2].split(":");
 
+    dataMap.set("roof", 1);
+
+    dao.dbConnect(1, dataMap);
+
     job = schedule.scheduleJob(time[1] + ' ' + time[0] + ' '+ '* * *', function(){
-      data.channel.send(newSchedule[1]);
+      msg.channel.send(newSchedule[1]);
     });
   } else{
-    data.channel.send("반복을 판단하는 곳에 입력을 확인해주세요!");
+    msg.channel.send("반복을 판단하는 곳에 입력을 확인해주세요!");
     return;
   }
 
-  map.set(data.author.id+newSchedule[0], job);
+
+  map.set(msg.author.id+newSchedule[0], job);
 }
 
 function deleteSchedule(data){
